@@ -497,4 +497,17 @@ export class SqliteMirror {
       .all({channel_id: channel, message_id: message})
       .map((e) => Model.refToEmoji(e.emoji));
   }
+
+  latestMessageId(channel: Model.Snowflake) {
+    return this._db
+      .prepare(
+        dedent`
+          SELECT id, max(timestamp_ms)
+          FROM messages
+          WHERE channel_id = :channel_id
+        `
+      )
+      .pluck()
+      .get({channel_id: channel});
+  }
 }

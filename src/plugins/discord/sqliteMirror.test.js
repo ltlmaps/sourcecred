@@ -1,5 +1,6 @@
 // @flow
 
+import {type TimestampMs} from "../../util/timestamp";
 import Database from "better-sqlite3";
 import {SqliteMirror} from "./sqliteMirror";
 import dedent from "../../util/dedent";
@@ -25,12 +26,13 @@ describe("plugins/discord/sqliteMirror", () => {
   const testMessage = (
     id: Snowflake,
     channelId: Snowflake,
-    authorId: Snowflake
+    authorId: Snowflake,
+    timestampMs: TimestampMs = Date.parse("2020-03-03T23:35:10.615000+00:00")
   ): Message => ({
     id: id,
     channelId: channelId,
     authorId: authorId,
-    timestampMs: Date.parse("2020-03-03T23:35:10.615000+00:00"),
+    timestampMs: timestampMs,
     content: "Just going to drop this here",
     reactionEmoji: [customEmoji()],
     nonUserAuthor: false,
@@ -254,6 +256,25 @@ describe("plugins/discord/sqliteMirror", () => {
         timestamp_ms: 1583278510615,
         content: "Just going to drop this here",
       });
+    });
+
+    it("retrieves latest message's id", () => {
+      const channelId: Snowflake = "1";
+      const authorId: Snowflake = "2";
+      const mes1: Message = testMessage("1", channelId, authorId, 1);
+      const mes2: Message = testMessage("2", channelId, authorId, 1000);
+      const mes3: Message = testMessage("3", channelId, authorId, 5);
+
+      const db = new Database(":memory:");
+      const sqliteMirror = new SqliteMirror(db, "0");
+      sqliteMirror.addUser(testUser(authorId));
+      sqliteMirror.addChannel(testChannel(channelId));
+      sqliteMirror.addMessage(mes1);
+      sqliteMirror.addMessage(mes2);
+      sqliteMirror.addMessage(mes3);
+
+      // Should return mes2's id based on timestamp of 1000
+      expect(sqliteMirror.latestMessageId(channelId)).toBe("2");
     });
 
     it("retrieves messages", () => {
